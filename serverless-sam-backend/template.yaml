@@ -1,0 +1,66 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  serverless-sam-backend
+  
+  Sample SAM Template for serverless-sam-backend
+
+# More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
+Globals:
+  Function:
+    Timeout: 5
+Parameters:
+  EventBusName:
+    Type: String
+    Default: eventbus
+
+Resources:
+  EventBus:
+    Type: AWS::Events::EventBus
+    Properties: 
+      Name: !Ref EventBusName
+  
+  HelloWorldFunction:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      CodeUri: hello-world/
+      Handler: hello-world
+      Runtime: go1.x
+      Tracing: Active
+      Environment:
+        Variables:
+          EVENT_BUS_NAME: !Ref EventBus
+      Policies:
+        - EventBridgePutEventsPolicy:
+            EventBusName: !Ref EventBus
+      Events:
+        CatchAll:
+          Type: HttpApi # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
+          Properties:
+            Path: /hello
+            Method: GET
+
+  EBFunction:
+    Type: AWS::Serverless::Function 
+    Properties:
+      CodeUri: eb-function/
+      Handler: eb-function
+      Runtime: go1.x
+      Tracing: Active
+      Events:
+        EBRule:
+          Type: EventBridgeRule
+          Properties:
+            EventBusName: !Ref EventBusName
+            Pattern:
+              source:
+                - fireflies.employee
+              detail-type:
+                - EmployeeCreated
+
+  
+
+Outputs:
+  HelloWorldAPI:
+    Description: "API Gateway endpoint URL for Prod environment for First Function"
+    Value: !Sub "https://${ServerlessHttpApi}.execute-api.${AWS::Region}.amazonaws.com/hello"
